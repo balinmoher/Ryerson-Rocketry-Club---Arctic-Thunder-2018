@@ -15,8 +15,8 @@
 #include <SD.h>
 #include <Wire.h>
 #include <MPU6050.h>
-//#include <Adafruit_Sensor.h>
-//#include <Adafruit_BMP280.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
 #include <SoftwareSerial.h>
 
 // IR Sensor setup
@@ -25,17 +25,17 @@ int IR_sensor;
 int pay_dist; // measured in cm
 
 // Pressure/Temperature/Altitude Setup (BMP 280)
-//Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
-//Adafruit_BMP280 bmp(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
+Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
+Adafruit_BMP280 bmp(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
 // @ Ryerson : 90m above sea level |-> according to BMP -> 163.4
-//Adafruit_BMP280 bmp; // I2C
-//float exp_o; // Used in Baro Pressure calcs (later)
-//int Ph = 1013; // Barometric pressure at your ground level (calculated later)
-//int rtemp, rpress, ralt , rtemp_conv, rpress_conv, ralt_conv, 
+Adafruit_BMP280 bmp; // I2C
+float exp_o; // Used in Baro Pressure calcs (later)
+int Ph = 1013; // Barometric pressure at your ground level (calculated later)
+int rtemp, rpress, ralt , rtemp_conv, rpress_conv, ralt_conv, 
 int battemp;
-//String rock_T = "";
-//String rock_P = "";
-//String rock_A = "";
+String rock_T = "";
+String rock_P = "";
+String rock_A = "";
 
 // GPS Setup
 TinyGPS gps;
@@ -71,7 +71,7 @@ const int chipSelect = 8;
 
 //============== SETUP ==============//
 void setup() {
-  //wdt_disable();
+  wdt_disable();
   //I2C start
   Wire.begin();
   //Serial start
@@ -118,14 +118,14 @@ void setup() {
     //Serial.println(F("MCP initialized"));
   }
 
-  //wdt_enable(WDTO_1S);
+  wdt_enable(WDTO_1S);
 }
 
 //================= END SETUP ===============//
 //===========================================//
 //============== MAIN LOOP BEGINS ===========//
 void loop() {
-
+ wdt_reset(); // Reset the watchdog every loop iteration
   //============================================//
   //================= IR SENSOR ================//
   // Reference : https://www.dfrobot.com/wiki/index.php/SHARP_GP2Y0A41SK0F_IR_ranger_sensor_(4-30cm)_SKU:SEN0143
@@ -140,9 +140,12 @@ void loop() {
   // Store distance data to SD
   IRData = SD.open("IR.txt", FILE_WRITE);
   if (IRData) {
+     wdt_reset();
     // Serial.println("Writing IR Sensor data to SD");
     IRData.println(pay_dist);
+    
     IRData.close();
+    
   }
   //else Serial.println(F("Could not save IR data"));
 
@@ -156,48 +159,49 @@ void loop() {
   //=================== BMP + MCU ====================//
 
   // Read values from BMP
-  //rtemp = bmp.readTemperature();
-  //rpress = bmp.readPressure();
-  //ralt = bmp.readAltitude(Ph);
+  rtemp = bmp.readTemperature();
+  rpress = bmp.readPressure();
+  ralt = bmp.readAltitude(Ph);
   battemp = rocket_temp.readTempC();
 
   // Store enviro data to SD
-  //enviroData = SD.open("envir.txt", FILE_WRITE);
-  //if (enviroData) {
-    //Serial.println(F("Writing Atmospheric data to SD"));
-    //enviroData.print(rtemp);
-    //enviroData.print(",");
-//    enviroData.print(rpress);
-//    enviroData.print(",");
-//    enviroData.print(ralt);
-//    enviroData.print(",");
-//    enviroData.print(battemp);
-//    enviroData.println();
-//    delay(5);
-//    enviroData.close();
-//  }
-  //else Serial.println(F("Could not save BMP data"));
+  enviroData = SD.open("envir.txt", FILE_WRITE);
+  if (enviroData) {
+     wdt_reset();
+    Serial.println(F("Writing Atmospheric data to SD"));
+    enviroData.print(rtemp);
+    enviroData.print(",");
+    enviroData.print(rpress);
+    enviroData.print(",");
+    enviroData.print(ralt);
+    enviroData.print(",");
+    enviroData.print(battemp);
+    enviroData.println();
+    delay(5);
+    enviroData.close();
+ }
+  else Serial.println(F("Could not save BMP data"));
 
-  //Transmit or print atmospheric data
-  //Serial.print(F("Temperature:"));
-  //Serial.print("b");
-  //Serial.println(rtemp);
-  //Serial.print(F(","));
+  Transmit or print atmospheric data
+  Serial.print(F("Temperature:"));
+  Serial.print("b");
+  Serial.println(rtemp);
+  Serial.print(F(","));
 
-  //Serial.print(F("Pressure: "));
-  //Serial.print("c");
-  //Serial.println(rpress);
-  //Serial.print(F(","));
+  Serial.print(F("Pressure: "));
+  Serial.print("c");
+  Serial.println(rpress);
+  Serial.print(F(","));
 
-  //Serial.print(F("Altitude: "));
-  //Serial.print("d");
-  //Serial.println(ralt);
-  //Serial.print(F(","));
+  Serial.print(F("Altitude: "));
+  Serial.print("d");
+  Serial.println(ralt);
+  Serial.print(F(","));
 
-  //Serial.print(F("Battery Temp: "));
+  Serial.print(F("Battery Temp: "));
   Serial.print(F("e"));
   Serial.println(battemp);
-  //Serial.print(F(","));
+  Serial.print(F(","));
 
   //=============================================//
   //==================== GPS ====================//
@@ -234,6 +238,7 @@ void loop() {
   // Store GPS data
   GPSData = SD.open(F("gpsdata.txt"), FILE_WRITE);
   if (GPSData) {
+     wdt_reset();
     //Serial.println(F("Writing GPS data to SD"));
     GPSData.print(lat);
     GPSData.print(F(","));
@@ -278,11 +283,12 @@ void loop() {
   // Store Avionics MPU data
   avMPUData = SD.open("avMPU.txt", FILE_WRITE);
   if (avMPUData) {
-    //Serial.println(F("Writing avMPU data to SD"));
-    //avMPUData.print(AcX/2610.0);
-    //avMPUData.print(F(","));
-    //avMPUData.print(AcY/2610.0);
-    //avMPUData.print(F(","));
+     wdt_reset();
+    Serial.println(F("Writing avMPU data to SD"));
+    avMPUData.print(AcX/2610.0);
+    avMPUData.print(F(","));
+    avMPUData.print(AcY/2610.0);
+    avMPUData.print(F(","));
     avMPUData.println(AcZ/2610.0);
     delay(5);
     avMPUData.close();
@@ -290,16 +296,16 @@ void loop() {
   //else Serial.println(F("Could not save AvMPU data"));
 
   //Transmit or print AvAccel data
-  //Serial.print("X: ");
-  //Serial.print(F("k"));
-  //Serial.println(AcX/2610.0);
-  //Serial.print(F(","));
-  //Serial.print(F("l"));
-  //Serial.println(AcY/2610.0);
-  //Serial.print(F(","));
+  Serial.print("X: ");
+  Serial.print(F("k"));
+  Serial.println(AcX/2610.0);
+  Serial.print(F(","));
+  Serial.print(F("l"));
+  Serial.println(AcY/2610.0);
+  Serial.print(F(","));
   Serial.print(F("m"));
   Serial.println(AcZ/2610.0);
-  //Serial.print(F(","));
+  Serial.print(F(","));
 
   //Serial.println(F("===Payload MPU==="));
 
@@ -308,26 +314,27 @@ void loop() {
 
   // Store Payload MPU Data
   payMPUData = SD.open("payMPU.txt", FILE_WRITE);
+   wdt_reset();
   if (payMPUData) {
-    //Serial.println(F("Writing payMPU data to SD"));
-    //payMPUData.print(AcX/2335.0);
-    //payMPUData.print(F(","));
-    //payMPUData.print(AcY/2335.0);
-    //payMPUData.print(F(","));
+    Serial.println(F("Writing payMPU data to SD"));
+    payMPUData.print(AcX/2335.0);
+    payMPUData.print(F(","));
+    payMPUData.print(AcY/2335.0);
+    payMPUData.print(F(","));
     payMPUData.println(AcZ/2335.0);
     delay(5);
     payMPUData.close();
   }
-  //else Serial.println(F("Could not save payMPU data"));
+  else Serial.println(F("Could not save payMPU data"));
 
   //Transmit or print payAccel data
-  //Serial.print("X: ");
-  //Serial.print(F("n"));
-  //Serial.println(AcX/2335.0);
-  //Serial.print(F(","));
-  //Serial.print(F("o"));
-  //Serial.println(AcY/2335.0);
-  //Serial.print(F(","));
+  Serial.print("X: ");
+  Serial.print(F("n"));
+  Serial.println(AcX/2335.0);
+  Serial.print(F(","));
+  Serial.print(F("o"));
+  Serial.println(AcY/2335.0);
+  Serial.print(F(","));
   Serial.print(F("p"));
   Serial.println(AcZ/2335.0);
   //Serial.print(F(","));
@@ -336,15 +343,15 @@ void loop() {
 //========================== FUNCTIONS ============================//
 
 //void bmp_rocket() {
-//  rtemp = bmp.readTemperature();
-//  rpres = bmp.readPressure();
-//  // ALT correction
-//  // Barometric pressure varying with altitude is represented using the formula: P=Po*e^(-(Mg/RT)*h)
-//  // Where Po=Sea level Bar. Pressure (use hPa)// M=molar mass of Earth's air//R=Universal Gas constant
-//  //       T=Standard temperature// g=gravitational constant
-//  //  exp_o = exp((-((M * g) / (R * T)) * h));
-//  //  Ph = Po * exp_o;
-//  ralt = bmp.readAltitude(Ph);
+  rtemp = bmp.readTemperature();
+  rpres = bmp.readPressure();
+  // ALT correction
+  // Barometric pressure varying with altitude is represented using the formula: P=Po*e^(-(Mg/RT)*h)
+  // Where Po=Sea level Bar. Pressure (use hPa)// M=molar mass of Earth's air//R=Universal Gas constant
+  T=Standard temperature// g=gravitational constant
+  exp_o = exp((-((M * g) / (R * T)) * h));
+  Ph = Po * exp_o;
+  ralt = bmp.readAltitude(Ph);
 //}
 
 
@@ -367,10 +374,10 @@ void AGEval(const int addr) {
     Wire.requestFrom(0x69, 14, true); // request a total of 14 registers
   }
 
-  //AcX = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_XOUT_H) & 0x40 (ACCEL_ZOUT_L)
-  //AcY = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_YOUT_H) & 0x40 (ACCEL_ZOUT_L)
+  AcX = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_XOUT_H) & 0x40 (ACCEL_ZOUT_L)
+  AcY = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_YOUT_H) & 0x40 (ACCEL_ZOUT_L)
   AcZ = Wire.read() << 8 | Wire.read(); // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
-  //Tmp = Wire.read() << 8 | Wire.read(); // 0x41 (TEMP_OUT_H) & 0x42 (TEMP_OUT_L)
+  Tmp = Wire.read() << 8 | Wire.read(); // 0x41 (TEMP_OUT_H) & 0x42 (TEMP_OUT_L)
 
 }
 
